@@ -26,8 +26,9 @@
       <h1 id="selectedBrandTitle">Choose Amount</h1>
       <p class="sub">All cards currently 70% off – pay only 30%</p>
       <div class="amounts" id="amountBtns"></div>
-      <button class="pay-btn" id="toDetailsBtn" disabled onclick="goStep(3)">Continue</button>
-    </div>
+      <button class="pay-btn" id="payBtn" onclick="submitPay()" disabled style="opacity:0.55;">
+  Enter valid card details
+</button>
 
     <!-- STEP 3: Email + Payment + Billing -->
     <div id="step3" class="step">
